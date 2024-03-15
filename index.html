@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lecteur de musique</title>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <section>
+        <div class="imgMusic">
+            <img id="img_title" src="./ressources/thumbs/le monde.jpg" alt="Image de la musique">
+        </div>
+        <div class="set">
+            <div class="music">
+                <div class="name">
+                    <p class="artist">HDZ</p>
+                    <p class="title">Le monde</p>
+                </div>
+                <p class="nbr_list">1/8</p>
+            </div>
+            <div class="contain_lecteur">
+                <div class="lecteur">
+                    <div id="cursor"></div>
+                </div>
+                <div id="time">
+                    <p class="time">00:00</p>
+                    <p class="timeMax">03:36</p>
+                </div>
+            </div>
+            <div class="btn">
+                <button id="shuffle" aria-label="Mélanger">
+                    <img id="img_shuffle" src="./ressources/icons/shuffle-icon.svg" alt="Icône de mélange">
+                    <img id="img_shuffleOne" src="./ressources/icons/shuffle.svg" alt="Icône de mélange">
+                </button>
+                <button id="prev_btn" aria-label="Précédent">
+                    <img src="./ressources/icons/prev-icon.svg" alt="Icône précédente">
+                </button>
+                <button aria-label="Lecture/Pause">
+                    <div id="play">
+                        <img id="btn_play" src="./ressources/icons/play-icon.svg" alt="Icône de lecture">
+                        <img id="pause" src="./ressources/icons/pause-icon.svg" alt="Icône de pause">
+                    </div>
+                </button>
+                <button id="next_btn" aria-label="Suivant">
+                    <img src="./ressources/icons/next-icon.svg" alt="Icône suivante">
+                </button>
+                <button id="list_music" aria-label="Liste de musique">
+                    <img src="./ressources/icons/music-icon.svg" alt="Icône de liste de musique">
+                </button>
+            </div>
+        </div>
+    </section>
+    <script src="script.js"></script>
+</body>
+
+</html>
