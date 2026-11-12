@@ -5,6 +5,7 @@
   "description": "IA financière personnelle : mémoire patrimoniale, moteur de calcul déterministe, orchestrateur multi-spécialistes et interface conversationnelle.",
   "scripts": {
     "dev": "next dev",
+    "dev:https": "next dev --experimental-https",
     "build": "next build",
     "start": "next start",
     "test": "vitest run",

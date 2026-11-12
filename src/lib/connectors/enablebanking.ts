@@ -35,7 +35,7 @@ export function configFromEnv(): BankApiConfig | null {
   return { applicationId, privateKey: fs.readFileSync(/* turbopackIgnore: true */ keyPath, "utf8") };
 }
 
-export const redirectUrl = (): string => `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/api/bank/callback`;
+export const redirectUrl = (): string => `${(process.env.APP_URL ?? "https://localhost:3000").replace(/\/$/, "")}/api/bank/callback`;
 
 const b64url = (input: string | Buffer): string => Buffer.from(input).toString("base64url");
 

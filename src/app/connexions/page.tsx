@@ -58,6 +58,7 @@ function Banks({ data, reload }: { data: BankData; reload: () => void }) {
           <ol className="list-decimal space-y-1.5 pl-5">
             <li>Crée un compte sur enablebanking.com, puis une application en environnement <strong className="text-ink">Production</strong>.</li>
             <li>Déclare cette adresse de retour, à l'identique : <code className="rounded bg-surface-2 px-1.5 py-0.5 text-xs text-ink">{data.redirectUrl}</code></li>
+            <li>L'agrégateur n'accepte que des adresses <code className="rounded bg-surface-2 px-1 text-xs">https://</code> : en local, lance l'application avec <code className="rounded bg-surface-2 px-1 text-xs">npm run dev:https</code>.</li>
             <li>Garde le fichier <code className="rounded bg-surface-2 px-1 text-xs">.pem</code> téléchargé à la création : c'est la clé privée de l'application. Range-le dans <code className="rounded bg-surface-2 px-1 text-xs">secrets/</code> (ignoré par git).</li>
             <li>Active l'application en y déclarant tes propres comptes dans leur console : c'est le mode « restreint », réservé à tes comptes, sans contrat commercial. Vérifie à l'inscription qu'il est toujours gratuit.</li>
             <li>Renseigne <code className="rounded bg-surface-2 px-1 text-xs">ENABLE_BANKING_APP_ID</code> et <code className="rounded bg-surface-2 px-1 text-xs">ENABLE_BANKING_PRIVATE_KEY_PATH</code> dans <code className="rounded bg-surface-2 px-1 text-xs">.env.local</code>, puis redémarre.</li>

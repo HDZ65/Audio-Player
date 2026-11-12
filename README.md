@@ -22,6 +22,7 @@ Au premier lancement, `seed/situation.local.json` est importé s'il existe. Sino
 | Commande | Rôle |
 |---|---|
 | `npm run dev` / `npm run build && npm start` | Développement / production |
+| `npm run dev:https` | Développement en HTTPS local, requis pour la connexion bancaire |
 | `npm test` | Tests (moteur, mémoire, agents, outils, connecteurs, import, sécurité) |
 | `npm run typecheck` | Vérification des types |
 | `npm run seed -- fichier.json` | Importer une situation de départ dans une base vide |
@@ -46,7 +47,7 @@ Tout passe par la page **Connexions**, uniquement par des voies autorisées et e
 L'application utilise [Enable Banking](https://enablebanking.com). Tu t'identifies sur le site de ta banque ; l'application ne voit jamais tes identifiants et ne reçoit que soldes et opérations. Aucun service de paiement n'est appelé.
 
 1. Crée un compte sur enablebanking.com, puis une application en environnement **Production**.
-2. Déclare l'adresse de retour `APP_URL/api/bank/callback` (par défaut `http://localhost:3000/api/bank/callback`).
+2. Déclare l'adresse de retour `APP_URL/api/bank/callback`, soit `https://localhost:3000/api/bank/callback` en local. L'agrégateur refuse les adresses `http://` : lance alors l'application avec `npm run dev:https` (certificat local généré au premier lancement).
 3. Range le fichier `.pem` téléchargé à la création dans `secrets/` (ignoré par git).
 4. Active l'application en y déclarant tes propres comptes (mode « restreint », réservé à tes comptes).
 5. Renseigne `ENABLE_BANKING_APP_ID`, `ENABLE_BANKING_PRIVATE_KEY_PATH` et `APP_URL` dans `.env.local`, redémarre, puis choisis ta banque dans la liste.
