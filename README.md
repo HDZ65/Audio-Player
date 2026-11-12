@@ -48,9 +48,9 @@ L'application utilise [Enable Banking](https://enablebanking.com). Tu t'identifi
 
 1. Crée un compte sur enablebanking.com, puis une application en environnement **Production**.
 2. Déclare l'adresse de retour `APP_URL/api/bank/callback`, soit `https://localhost:3000/api/bank/callback` en local. L'agrégateur refuse les adresses `http://` : lance alors l'application avec `npm run dev:https` (certificat local généré au premier lancement).
-3. Range le fichier `.pem` téléchargé à la création dans `secrets/` (ignoré par git).
-4. Active l'application en y déclarant tes propres comptes (mode « restreint », réservé à tes comptes).
-5. Renseigne `ENABLE_BANKING_APP_ID`, `ENABLE_BANKING_PRIVATE_KEY_PATH` et `APP_URL` dans `.env.local`, redémarre, puis choisis ta banque dans la liste.
+3. Active l'application en y associant tes propres comptes (mode « restreint », réservé à tes comptes).
+4. Lance `npm run dev:https`, ouvre la page Connexions et donne-lui le fichier `.pem` téléchargé à la création, sans le renommer : son nom est l'identifiant de l'application. Il est rangé dans `secrets/` (ignoré par git) ; aucune variable d'environnement n'est nécessaire.
+5. Choisis ta banque dans la liste.
 
 À savoir :
 

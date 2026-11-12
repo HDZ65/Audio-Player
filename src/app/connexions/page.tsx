@@ -56,13 +56,12 @@ function Banks({ data, reload }: { data: BankData; reload: () => void }) {
         <div className="text-sm text-ink-2">
           <p className="mb-2 font-medium text-ink">La connexion bancaire n'est pas encore configurée. Elle demande une inscription chez l'agrégateur, à faire une fois :</p>
           <ol className="list-decimal space-y-1.5 pl-5">
-            <li>Crée un compte sur enablebanking.com, puis une application en environnement <strong className="text-ink">Production</strong>.</li>
-            <li>Déclare cette adresse de retour, à l'identique : <code className="rounded bg-surface-2 px-1.5 py-0.5 text-xs text-ink">{data.redirectUrl}</code></li>
-            <li>L'agrégateur n'accepte que des adresses <code className="rounded bg-surface-2 px-1 text-xs">https://</code> : en local, lance l'application avec <code className="rounded bg-surface-2 px-1 text-xs">npm run dev:https</code>.</li>
-            <li>Garde le fichier <code className="rounded bg-surface-2 px-1 text-xs">.pem</code> téléchargé à la création : c'est la clé privée de l'application. Range-le dans <code className="rounded bg-surface-2 px-1 text-xs">secrets/</code> (ignoré par git).</li>
-            <li>Active l'application en y déclarant tes propres comptes dans leur console : c'est le mode « restreint », réservé à tes comptes, sans contrat commercial. Vérifie à l'inscription qu'il est toujours gratuit.</li>
-            <li>Renseigne <code className="rounded bg-surface-2 px-1 text-xs">ENABLE_BANKING_APP_ID</code> et <code className="rounded bg-surface-2 px-1 text-xs">ENABLE_BANKING_PRIVATE_KEY_PATH</code> dans <code className="rounded bg-surface-2 px-1 text-xs">.env.local</code>, puis redémarre.</li>
+            <li>Crée un compte sur enablebanking.com, puis une application en environnement <strong className="text-ink">Production</strong>, avec cette adresse de retour : <code className="rounded bg-surface-2 px-1.5 py-0.5 text-xs text-ink">{data.redirectUrl}</code></li>
+            <li>Active-la en y associant tes propres comptes (mode « restreint », réservé à tes comptes).</li>
+            <li>Donne ici le fichier <code className="rounded bg-surface-2 px-1 text-xs">.pem</code> que ton navigateur a téléchargé à la création — sans le renommer : son nom est l'identifiant de l'application.</li>
           </ol>
+          <label className="btn btn-primary mt-3 cursor-pointer">Choisir le fichier .pem<input type="file" accept=".pem" className="sr-only" disabled={busy} onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) void run(async () => { await api("/api/bank/key", { method: "POST", body: { filename: file.name, pem: await file.text() } }); reload(); }); }} /></label>
+          <p className="mt-2 text-xs text-ink-3">Le fichier est rangé dans le dossier <code className="rounded bg-surface-2 px-1">secrets/</code> de cette machine, hors du dépôt. Rien d'autre à configurer. L'agrégateur n'accepte que les adresses https : lance l'application avec <code className="rounded bg-surface-2 px-1">npm run dev:https</code>.</p>
         </div>
       ) : (
         <>

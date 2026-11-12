@@ -26,13 +26,50 @@ export interface BankApiConfig {
   now?: () => number;
 }
 
-/** Configuration lue dans l'environnement ; la clé privée reste dans un fichier hors du dépôt. */
+import path from "node:path";
+
+const KEY_FILE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.pem$/i;
+const PEM = /^-----BEGIN (RSA )?PRIVATE KEY-----[\s\S]+-----END (RSA )?PRIVATE KEY-----\s*$/;
+
+export const secretsDir = (): string => path.resolve(process.env.ENABLE_BANKING_SECRETS_DIR ?? "./secrets");
+
+/**
+ * Configuration de l'accès. Deux façons, par ordre de priorité :
+ *  1. variables d'environnement ENABLE_BANKING_APP_ID et ENABLE_BANKING_PRIVATE_KEY_PATH ;
+ *  2. le fichier « <identifiant>.pem » tel que téléchargé chez l'agrégateur, déposé dans secrets/
+ *     (le nom du fichier est l'identifiant de l'application : rien d'autre à configurer).
+ * La clé privée reste dans un fichier hors du dépôt.
+ */
 export function configFromEnv(): BankApiConfig | null {
   const applicationId = process.env.ENABLE_BANKING_APP_ID;
   const keyPath = process.env.ENABLE_BANKING_PRIVATE_KEY_PATH;
-  // Chemin fourni à l'exécution : le bundler ne doit ni le suivre ni surveiller son dossier.
-  if (!applicationId || !keyPath || !fs.existsSync(/* turbopackIgnore: true */ keyPath)) return null;
-  return { applicationId, privateKey: fs.readFileSync(/* turbopackIgnore: true */ keyPath, "utf8") };
+  // Chemins fournis à l'exécution : le bundler ne doit ni les suivre ni surveiller leur dossier.
+  if (applicationId && keyPath && fs.existsSync(/* turbopackIgnore: true */ keyPath)) {
+    return { applicationId, privateKey: fs.readFileSync(/* turbopackIgnore: true */ keyPath, "utf8") };
+  }
+  const dir = secretsDir();
+  if (!fs.existsSync(/* turbopackIgnore: true */ dir)) return null;
+  for (const name of fs.readdirSync(/* turbopackIgnore: true */ dir).sort()) {
+    const match = name.match(KEY_FILE);
+    if (match) return { applicationId: match[1]!.toLowerCase(), privateKey: fs.readFileSync(/* turbopackIgnore: true */ path.join(dir, name), "utf8") };
+  }
+  return null;
+}
+
+/**
+ * Enregistre la clé téléchargée chez l'agrégateur. Le nom du fichier doit être celui d'origine
+ * (l'identifiant de l'application) ; une éventuelle clé précédente est remplacée.
+ */
+export function storeKeyFile(filename: string, pem: string): { applicationId: string } {
+  const match = path.basename(filename).match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.pem$/i);
+  if (!match) throw new BankApiError("Le nom du fichier doit être celui téléchargé chez Enable Banking : l'identifiant de l'application suivi de .pem.", 400);
+  if (!PEM.test(pem.trim())) throw new BankApiError("Ce fichier n'est pas une clé privée au format PEM.", 400);
+  const dir = secretsDir();
+  fs.mkdirSync(/* turbopackIgnore: true */ dir, { recursive: true, mode: 0o700 });
+  for (const name of fs.readdirSync(/* turbopackIgnore: true */ dir)) if (KEY_FILE.test(name)) fs.rmSync(/* turbopackIgnore: true */ path.join(dir, name));
+  const applicationId = match[1]!.toLowerCase();
+  fs.writeFileSync(/* turbopackIgnore: true */ path.join(dir, `${applicationId}.pem`), `${pem.trim()}\n`, { mode: 0o600 });
+  return { applicationId };
 }
 
 export const redirectUrl = (): string => `${(process.env.APP_URL ?? "https://localhost:3000").replace(/\/$/, "")}/api/bank/callback`;

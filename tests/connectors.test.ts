@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { buildContext } from "@/lib/ai/context";
 import { detectIntent } from "@/lib/ai/local";
 import { runSpecialists } from "@/lib/ai/specialists";
-import { BankApiError, createJwt, maskIban, pickBalance, type BankApiConfig } from "@/lib/connectors/enablebanking";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { BankApiError, configFromEnv, createJwt, maskIban, pickBalance, storeKeyFile, type BankApiConfig } from "@/lib/connectors/enablebanking";
 import { completeAuthorization, disconnect, syncConnection, transactionToInput } from "@/lib/connectors/sync";
 import { TR_SOURCE, applyTradeRepublicImport, parseNumber, parseTradeRepublicCsv } from "@/lib/connectors/traderepublic";
 import { openDatabase, type DB } from "@/lib/db/client";
@@ -80,6 +83,28 @@ describe("connexion bancaire en lecture seule", () => {
     expect(token.header).toEqual({ typ: "JWT", alg: "RS256", kid: APP_ID });
     expect(token.claims).toMatchObject({ iss: "enablebanking.com", aud: "api.enablebanking.com", iat: 1_700_000_000 });
     expect(Number(token.claims.exp) - Number(token.claims.iat)).toBeLessThanOrEqual(3600);
+  });
+  it("reconnaît la clé déposée telle que téléchargée, sans autre configuration", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "secrets-"));
+    process.env.ENABLE_BANKING_SECRETS_DIR = dir;
+    try {
+      expect(configFromEnv()).toBeNull();
+      expect(() => storeKeyFile("cle.pem", PEM)).toThrow(/identifiant/);
+      expect(() => storeKeyFile(`${APP_ID}.pem`, "pas une clé")).toThrow(/PEM/);
+      expect(() => storeKeyFile(`../../${APP_ID}.pem`, PEM)).not.toThrow();
+      expect(fs.readdirSync(dir)).toEqual([`${APP_ID}.pem`]);
+      // Un préfixe ajouté par le navigateur ou un envoi ne gêne pas ; une nouvelle clé remplace l'ancienne.
+      const other = "11111111-2222-4333-8444-555555555555";
+      storeKeyFile(`copie-${other}.pem`, PEM);
+      expect(fs.readdirSync(dir)).toEqual([`${other}.pem`]);
+      expect(fs.statSync(path.join(dir, `${other}.pem`)).mode & 0o077).toBe(0);
+      const config = configFromEnv()!;
+      expect(config.applicationId).toBe(other);
+      expect(verifyJwt(createJwt(config))?.header.kid).toBe(other);
+    } finally {
+      delete process.env.ENABLE_BANKING_SECRETS_DIR;
+      fs.rmSync(dir, { recursive: true });
+    }
   });
   it("ne conserve que la fin de l'IBAN et préfère le solde comptable", () => {
     expect(maskIban("FR76 3000 4000 0312 3456 7890 143")).toBe("•••• 0143");
