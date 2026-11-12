@@ -8,7 +8,8 @@ const NAV = [
   { href: "/patrimoine", label: "Patrimoine", icon: "M3 20h18M5 20V10m4.7 10V10m4.6 10V10M19 20V10M2.5 10 12 3.5 21.5 10z" },
   { href: "/budget", label: "Budget", icon: "M3 7.5A2.5 2.5 0 0 1 5.5 5h13A2.5 2.5 0 0 1 21 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 16.5zM3 10h18M7 15h3" },
   { href: "/objectifs", label: "Objectifs", icon: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zm0-4a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0-4a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" },
-  { href: "/simulateurs", label: "Simulateurs", icon: "M4 19V5m0 14h16M8 15l3.5-4 3 2.5L20 7" },
+  { href: "/connexions", label: "Connecter", icon: "M9.5 14.5 14.5 9.5M8 11 6.2 12.8a3.5 3.5 0 0 0 5 5L13 16m3-3 1.8-1.8a3.5 3.5 0 0 0-5-5L11 8" },
+  { href: "/simulateurs", label: "Simuler", icon: "M4 19V5m0 14h16M8 15l3.5-4 3 2.5L20 7" },
   { href: "/memoire", label: "Mémoire", icon: "M5 4.5A1.5 1.5 0 0 1 6.5 3H17a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6.5A1.5 1.5 0 0 1 5 19.5zM9 8h6M9 12h6M9 16h3" },
 ];
 

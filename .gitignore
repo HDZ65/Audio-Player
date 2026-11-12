@@ -9,3 +9,6 @@ next-env.d.ts
 data/*.db
 data/*.db-*
 seed/*.local.json
+# Clés et secrets : jamais versionnés
+secrets/
+*.pem

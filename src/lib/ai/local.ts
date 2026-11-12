@@ -50,6 +50,7 @@ export type Intent =
   | { kind: "emprunt" }
   | { kind: "amortissement"; capital: number; rate: number; years: number }
   | { kind: "precaution" }
+  | { kind: "connexion" }
   | { kind: "situation" };
 
 export function detectIntent(message: string): Intent {
@@ -58,6 +59,7 @@ export function detectIntent(message: string): Intent {
   const years = parseCount(message, /ans?|annees?/);
   const hypothetical = /\bsi\b|\bet si\b|combien/.test(t);
 
+  if (/connect|synchronis|relier|brancher|agreg/.test(t) && /banque|bourso|trade ?republic|compte|courtier/.test(t)) return { kind: "connexion" };
   if (/tableau|amortissement|remboursement/.test(t) && amounts.length > 0) {
     const rate = t.match(/(\d+(?:[.,]\d+)?)\s*%/);
     return { kind: "amortissement", capital: Math.max(...amounts), rate: rate ? Number(rate[1]!.replace(",", ".")) / 100 : 0.034, years: years ?? 20 };
@@ -252,6 +254,15 @@ export async function runLocalOrchestrator(db: DB, userMessage: string, emit: (e
         p.push(`Ton épargne disponible est de **${eur(e.liquid)}**, soit ${months(e.monthsCovered)} de dépenses${e.expensesAreLowerBound ? " (calculé sur ton loyer seul, donc surestimé)" : ""}. Repères : ${eur(e.targetMin)} pour ${SAFETY.emergencyMonthsMin.value} mois (minimum), ${eur(e.targetComfort)} pour ${SAFETY.emergencyMonthsComfort.value} mois (confortable).`);
         if (e.gapToMin > 0) p.push(`Il manque ${eur(e.gapToMin)} pour le minimum. Tant que ce seuil n'est pas atteint, chaque euro épargné a plus de valeur en sécurité qu'en Bourse : il t'évite de vendre tes titres au pire moment.`);
       }
+      break;
+    }
+    case "connexion": {
+      const ctx = buildContext(db);
+      if (ctx.connections.length > 0) p.push(`Banque(s) déjà reliée(s) : ${ctx.connections.map((c) => `${c.bank} (${c.status}, ${c.linkedAccounts} compte(s) suivi(s))`).join(", ")}.`);
+      p.push("Tout se passe dans la page **Connexions**, par deux voies autorisées :");
+      p.push("- **Ta banque**, en lecture seule, via un agrégateur agréé : tu t'identifies sur le site de ta banque, je ne vois jamais tes identifiants, et je ne peux ni virer ni payer. Je reçois les soldes et les opérations de tes comptes de paiement.\n- **Trade Republic**, par son export CSV officiel (dans l'application : Profil → Relevés → Export des transactions, « depuis le début »). J'en tire tes positions, quantités et prix de revient, ainsi que dividendes, intérêts et frais.");
+      p.push("Ce que je ne fais pas : me connecter avec ton numéro et ton code en imitant l'application du courtier. Ce serait contourner sa sécurité, et cela peut faire restreindre ton compte.");
+      p.push("Une limite à connaître : l'export ne contient pas de cours. Après l'import, il te restera à indiquer la valeur actuelle de chaque ligne — je n'en invente jamais.");
       break;
     }
     case "situation": {

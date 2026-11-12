@@ -19,7 +19,9 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  if (!authEnabled() || pathname === "/login" || pathname === "/api/auth") return NextResponse.next();
+  // Le retour de la banque arrive d'un autre site : le cookie de session (SameSite=Strict) n'y est pas joint.
+  // Cette route se protège elle-même par un jeton d'état aléatoire, à usage unique.
+  if (!authEnabled() || pathname === "/login" || pathname === "/api/auth" || pathname === "/api/bank/callback") return NextResponse.next();
   if (verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value)) return NextResponse.next();
 
   if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Authentification requise" }, { status: 401 });

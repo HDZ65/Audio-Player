@@ -5,7 +5,7 @@ import {
 import { NON_SPENDING } from "@/lib/budget/categorize";
 import type { DB } from "@/lib/db/client";
 import {
-  PROFILE_KEYS, factNumber, getFact, listAccounts, listDecisions, listFacts, listForecasts, listGoals, listHoldings, listTransactions,
+  PROFILE_KEYS, factNumber, getFact, listAccounts, listBankAccounts, listConnections, listDecisions, listFacts, listForecasts, listGoals, listHoldings, listTransactions,
   netWorthHistory, today, type Account, type Decision, type Fact, type Goal, type Holding, type Transaction,
 } from "@/lib/db/repo";
 
@@ -45,6 +45,8 @@ export interface FinancialContext {
   rent: number | null;
   otherExpenses: number | null;
   isEmpty: boolean;
+  /** Connexions bancaires en lecture seule et état de leur autorisation. */
+  connections: { bank: string; status: string; lastSyncAt: string | null; validUntil: string | null; daysLeft: number | null; linkedAccounts: number }[];
 }
 
 /** Dépenses moyennes observées sur les mois complets disponibles (3 au plus). */
@@ -118,6 +120,11 @@ export function buildContext(db: DB): FinancialContext {
     observedSpending: observeSpending(transactions, date),
     history, forecastChecks, missing, stale, salary, rent, otherExpenses,
     isEmpty: accounts.length === 0 && facts.length === 0,
+    connections: listConnections(db).map((c) => ({
+      bank: c.aspspName, status: c.status, lastSyncAt: c.lastSyncAt, validUntil: c.validUntil,
+      daysLeft: c.validUntil ? Math.floor((Date.parse(c.validUntil) - Date.now()) / 86_400_000) : null,
+      linkedAccounts: listBankAccounts(db, c.id).filter((a) => a.accountId !== null).length,
+    })),
   };
 }
 
@@ -133,7 +140,7 @@ export function contextForModel(ctx: FinancialContext): string {
   for (const a of ctx.accounts) lines.push(`- ${a.name} [${a.kind}] : ${a.balance.toFixed(2)} € au ${a.asOf}`);
   lines.push("", `## Patrimoine net calculé : ${ctx.netWorth.total.toFixed(2)} € (liquidités ${ctx.netWorth.liquid.toFixed(2)} €, placements ${ctx.netWorth.invested.toFixed(2)} €, dettes ${ctx.netWorth.debts.toFixed(2)} €)`);
   lines.push("", "## Lignes de portefeuille identifiées");
-  for (const h of ctx.holdings) lines.push(`- ${h.name} (${h.assetClass}${h.sector ? `, ${h.sector}` : ""}) : ${h.value !== null ? `${h.value.toFixed(2)} € au ${h.asOf}` : "valeur inconnue"}`);
+  for (const h of ctx.holdings) lines.push(`- ${h.name} (${h.assetClass}${h.sector ? `, ${h.sector}` : ""}) : ${h.value !== null ? `${h.value.toFixed(2)} € au ${h.asOf}` : "valeur de marché inconnue"}${h.quantity !== null ? `, ${h.quantity} titre(s)` : ""}${h.costBasis !== null ? `, prix de revient ${h.costBasis.toFixed(2)} € (ce qui a été payé, pas la valeur actuelle)` : ""}`);
   if (ctx.holdings.length === 0) lines.push("- aucune");
   lines.push("", "## Budget");
   lines.push(`- Capacité d'épargne mensuelle : ${ctx.budget.savingsCapacity !== null ? `${ctx.budget.savingsCapacity} €` : `inconnue (au plus ${ctx.budget.savingsCapacityUpperBound ?? "?"} € avant les dépenses hors loyer)`}`);
@@ -147,6 +154,9 @@ export function contextForModel(ctx: FinancialContext): string {
     lines.push("", "## Décisions passées");
     for (const d of ctx.decisions.slice(0, 10)) lines.push(`- ${d.date} — ${d.title} : ${d.detail}`);
   }
+  lines.push("", "## Connexions (lecture seule)");
+  for (const c of ctx.connections) lines.push(`- ${c.bank} : ${c.status}, ${c.linkedAccounts} compte(s) suivi(s), dernière synchronisation ${c.lastSyncAt ?? "jamais"}`);
+  if (ctx.connections.length === 0) lines.push("- aucune banque connectée : soldes et opérations sont saisis ou importés à la main (page Connexions)");
   if (ctx.missing.length > 0) lines.push("", `## Données manquantes : ${ctx.missing.join(" ; ")}`);
   if (ctx.stale.length > 0) lines.push("", `## Données anciennes : ${ctx.stale.join(" ; ")}`);
   return lines.join("\n");

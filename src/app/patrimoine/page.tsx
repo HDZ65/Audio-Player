@@ -8,7 +8,7 @@ import { ASSET_LABELS, KIND_LABELS, api, frDate } from "@/lib/client";
 import { eur, eurCents } from "@/lib/engine/money";
 
 interface Account { id: number; name: string; institution: string | null; kind: string; balance: number; asOf: string; source: string }
-interface Holding { id: number; accountId: number | null; name: string; ticker: string | null; assetClass: string; sector: string | null; value: number | null; asOf: string | null }
+interface Holding { id: number; accountId: number | null; name: string; ticker: string | null; assetClass: string; sector: string | null; value: number | null; asOf: string | null; quantity: number | null; costBasis: number | null; isin: string | null }
 interface Overview { netWorth: { total: number; liquid: number; invested: number; debts: number }; asOf: string | null }
 
 function BalanceCell({ account, onSaved }: { account: Account; onSaved: () => void }) {
@@ -82,7 +82,7 @@ export default function PatrimoinePage() {
         </dl>
       )}
 
-      <Section title="Comptes" hint="Clique sur un solde pour le mettre à jour.">
+      <Section title="Comptes" hint="Clique sur un solde pour le mettre à jour." actions={<a href="/connexions" className="btn btn-ghost !py-1.5 text-xs">Connecter une banque ou Trade Republic</a>}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-sm">
             <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="py-2 font-medium">Compte</th><th className="font-medium">Type</th><th className="font-medium">Solde au</th><th className="text-right font-medium">Solde</th><th /></tr></thead>
@@ -116,7 +116,7 @@ export default function PatrimoinePage() {
             <tbody>
               {(holdings.data ?? []).map((h) => (
                 <tr key={h.id} className="border-b border-line/60">
-                  <td className="py-2"><span className="font-medium">{h.name}</span>{h.sector && <span className="block text-xs text-ink-3">{h.sector}</span>}</td>
+                  <td className="py-2"><span className="font-medium">{h.name}</span><span className="block text-xs text-ink-3">{[h.sector, h.quantity !== null ? `${h.quantity.toLocaleString("fr-FR", { maximumFractionDigits: 4 })} titre(s)` : null, h.costBasis !== null ? `prix de revient ${eur(h.costBasis)}` : null].filter(Boolean).join(" · ")}</span></td>
                   <td className="text-ink-2">{ASSET_LABELS[h.assetClass] ?? h.assetClass}</td>
                   <td>
                     <select aria-label={`Compte de ${h.name}`} className="field !w-auto !py-1 text-xs" value={h.accountId ?? ""} onChange={async (e) => { if (await run(() => api(`/api/data/holdings?id=${h.id}`, { method: "PATCH", body: { name: h.name, accountId: e.target.value ? Number(e.target.value) : null } }))) reload(); }}>

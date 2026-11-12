@@ -158,19 +158,22 @@ export function netWorthHistory(db: DB): { date: string; total: number; liquid: 
 export interface Holding extends HoldingLike {
   quantity: number | null;
   source: string;
+  isin: string | null;
+  /** Prix de revient total (achats nets des ventes, frais inclus) : une donnée comptable, pas une valorisation. */
+  costBasis: number | null;
 }
-interface HoldingRow { id: number; account_id: number | null; name: string; ticker: string | null; asset_class: AssetClass; sector: string | null; quantity: number | null; value: number | null; as_of: string | null; source: string }
-const toHolding = (r: HoldingRow): Holding => ({ id: r.id, accountId: r.account_id, name: r.name, ticker: r.ticker, assetClass: r.asset_class, sector: r.sector, quantity: r.quantity, value: r.value, asOf: r.as_of, source: r.source });
+interface HoldingRow { id: number; account_id: number | null; name: string; ticker: string | null; asset_class: AssetClass; sector: string | null; quantity: number | null; value: number | null; as_of: string | null; source: string; isin: string | null; cost_basis: number | null }
+const toHolding = (r: HoldingRow): Holding => ({ id: r.id, accountId: r.account_id, name: r.name, ticker: r.ticker, assetClass: r.asset_class, sector: r.sector, quantity: r.quantity, value: r.value, asOf: r.as_of, source: r.source, isin: r.isin, costBasis: r.cost_basis });
 
 export function listHoldings(db: DB): Holding[] {
   return (db.prepare("SELECT * FROM holdings ORDER BY value IS NULL, value DESC, name").all() as HoldingRow[]).map(toHolding);
 }
-export interface HoldingInput { accountId?: number | null; name: string; ticker?: string | null; assetClass?: AssetClass; sector?: string | null; quantity?: number | null; value?: number | null; asOf?: string | null; source?: string }
+export interface HoldingInput { accountId?: number | null; name: string; ticker?: string | null; assetClass?: AssetClass; sector?: string | null; quantity?: number | null; value?: number | null; asOf?: string | null; source?: string; isin?: string | null; costBasis?: number | null }
 
 export function createHolding(db: DB, input: HoldingInput): Holding {
-  const info = db.prepare("INSERT INTO holdings (account_id, name, ticker, asset_class, sector, quantity, value, as_of, source) VALUES (?,?,?,?,?,?,?,?,?)")
+  const info = db.prepare("INSERT INTO holdings (account_id, name, ticker, asset_class, sector, quantity, value, as_of, source, isin, cost_basis) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
     .run(input.accountId ?? null, input.name, input.ticker ?? null, input.assetClass ?? "action", input.sector ?? null, input.quantity ?? null, input.value ?? null,
-      input.value != null ? (input.asOf ?? today()) : null, input.source ?? "saisie manuelle");
+      input.value != null ? (input.asOf ?? today()) : null, input.source ?? "saisie manuelle", input.isin ?? null, input.costBasis ?? null);
   return listHoldings(db).find((h) => h.id === Number(info.lastInsertRowid))!;
 }
 export function updateHolding(db: DB, id: number, patch: HoldingInput): Holding | null {
@@ -178,8 +181,8 @@ export function updateHolding(db: DB, id: number, patch: HoldingInput): Holding 
   if (!current) return null;
   const next = { ...current, ...patch };
   const asOf = patch.value !== undefined ? (patch.value === null ? null : (patch.asOf ?? today())) : current.asOf;
-  db.prepare("UPDATE holdings SET account_id=?, name=?, ticker=?, asset_class=?, sector=?, quantity=?, value=?, as_of=?, source=? WHERE id=?")
-    .run(next.accountId ?? null, next.name, next.ticker ?? null, next.assetClass, next.sector ?? null, next.quantity ?? null, next.value ?? null, asOf, next.source ?? current.source, id);
+  db.prepare("UPDATE holdings SET account_id=?, name=?, ticker=?, asset_class=?, sector=?, quantity=?, value=?, as_of=?, source=?, isin=?, cost_basis=? WHERE id=?")
+    .run(next.accountId ?? null, next.name, next.ticker ?? null, next.assetClass, next.sector ?? null, next.quantity ?? null, next.value ?? null, asOf, next.source ?? current.source, next.isin ?? null, next.costBasis ?? null, id);
   return listHoldings(db).find((h) => h.id === id) ?? null;
 }
 export function deleteHolding(db: DB, id: number): void {
@@ -195,10 +198,10 @@ const toTx = (r: TxRow): Transaction => ({ id: r.id, accountId: r.account_id, da
 export function listTransactions(db: DB, limit = 500): Transaction[] {
   return (db.prepare("SELECT * FROM transactions ORDER BY date DESC, id DESC LIMIT ?").all(limit) as TxRow[]).map(toTx);
 }
-export interface TransactionInput { accountId?: number | null; date: string; label: string; amount: number; category?: string; source?: string }
+export interface TransactionInput { accountId?: number | null; date: string; label: string; amount: number; category?: string; source?: string; /** Identifiant stable fourni par la source (banque, courtier). */ externalId?: string }
 
 /** Insère les opérations en ignorant les doublons (même date, libellé, montant, compte). */
-export function insertTransactions(db: DB, inputs: TransactionInput[], categorize: (label: string, amount: number) => string): { inserted: number; duplicates: number } {
+export function insertTransactions(db: DB, inputs: TransactionInput[], categorize: (label: string, amount: number) => string, actor: Actor = "utilisateur"): { inserted: number; duplicates: number } {
   const stmt = db.prepare("INSERT OR IGNORE INTO transactions (account_id, date, label, amount, category, source, hash) VALUES (?,?,?,?,?,?,?)");
   let inserted = 0;
   db.transaction(() => {
@@ -207,12 +210,12 @@ export function insertTransactions(db: DB, inputs: TransactionInput[], categoriz
       const base = `${t.accountId ?? ""}|${t.date}|${t.label.trim().toLowerCase()}|${t.amount.toFixed(2)}`;
       const occurrence = seen.get(base) ?? 0;
       seen.set(base, occurrence + 1);
-      const hash = createHash("sha256").update(`${base}|${occurrence}`).digest("hex");
+      const hash = createHash("sha256").update(t.externalId ? `ext|${t.accountId ?? ""}|${t.externalId}` : `${base}|${occurrence}`).digest("hex");
       const info = stmt.run(t.accountId ?? null, t.date, t.label.trim(), t.amount, t.category ?? categorize(t.label, t.amount), t.source ?? "saisie manuelle", hash);
       inserted += info.changes;
     }
   })();
-  if (inserted > 0) audit(db, "utilisateur", "operations.import", `${inserted} opération(s) ajoutée(s)`);
+  if (inserted > 0) audit(db, actor, "operations.import", `${inserted} opération(s) ajoutée(s)`);
   return { inserted, duplicates: inputs.length - inserted };
 }
 export function updateTransactionCategory(db: DB, id: number, category: string): void {
@@ -361,6 +364,68 @@ export function resolvePendingAction(db: DB, id: number, status: "confirmee" | "
   return getPendingAction(db, id);
 }
 
+/* ───────────── Connexions bancaires ───────────── */
+
+export type ConnectionStatus = "en_attente" | "active" | "expiree" | "erreur";
+export interface BankConnection { id: number; provider: string; aspspName: string; aspspCountry: string; state: string; sessionId: string | null; status: ConnectionStatus; validUntil: string | null; createdAt: string; lastSyncAt: string | null; lastError: string | null }
+interface ConnRow { id: number; provider: string; aspsp_name: string; aspsp_country: string; state: string; session_id: string | null; status: ConnectionStatus; valid_until: string | null; created_at: string; last_sync_at: string | null; last_error: string | null }
+const toConn = (r: ConnRow): BankConnection => ({ id: r.id, provider: r.provider, aspspName: r.aspsp_name, aspspCountry: r.aspsp_country, state: r.state, sessionId: r.session_id, status: r.status, validUntil: r.valid_until, createdAt: r.created_at, lastSyncAt: r.last_sync_at, lastError: r.last_error });
+
+export interface BankAccountLink { id: number; connectionId: number; externalUid: string; identificationHash: string; label: string; ibanMasked: string | null; accountType: string; currency: string; accountId: number | null }
+interface LinkRow { id: number; connection_id: number; external_uid: string; identification_hash: string; label: string; iban_masked: string | null; account_type: string; currency: string; account_id: number | null }
+const toLink = (r: LinkRow): BankAccountLink => ({ id: r.id, connectionId: r.connection_id, externalUid: r.external_uid, identificationHash: r.identification_hash, label: r.label, ibanMasked: r.iban_masked, accountType: r.account_type, currency: r.currency, accountId: r.account_id });
+
+export function createPendingConnection(db: DB, input: { provider: string; aspspName: string; aspspCountry: string; state: string; validUntil: string }): BankConnection {
+  // Une seule demande en attente par banque : les tentatives abandonnées ne s'accumulent pas.
+  db.prepare("DELETE FROM bank_connections WHERE status = 'en_attente' AND aspsp_name = ? AND aspsp_country = ?").run(input.aspspName, input.aspspCountry);
+  const info = db.prepare("INSERT INTO bank_connections (provider, aspsp_name, aspsp_country, state, status, valid_until, created_at) VALUES (?,?,?,?,'en_attente',?,?)")
+    .run(input.provider, input.aspspName, input.aspspCountry, input.state, input.validUntil, now());
+  return getConnection(db, Number(info.lastInsertRowid))!;
+}
+export function getConnection(db: DB, id: number): BankConnection | null {
+  const row = db.prepare("SELECT * FROM bank_connections WHERE id = ?").get(id) as ConnRow | undefined;
+  return row ? toConn(row) : null;
+}
+export function findPendingConnectionByState(db: DB, state: string): BankConnection | null {
+  const row = db.prepare("SELECT * FROM bank_connections WHERE state = ? AND status = 'en_attente'").get(state) as ConnRow | undefined;
+  return row ? toConn(row) : null;
+}
+export function listConnections(db: DB): BankConnection[] {
+  return (db.prepare("SELECT * FROM bank_connections WHERE status != 'en_attente' ORDER BY id").all() as ConnRow[]).map(toConn);
+}
+export function activateConnection(db: DB, id: number, sessionId: string, validUntil: string | null): void {
+  db.prepare("UPDATE bank_connections SET session_id = ?, status = 'active', valid_until = COALESCE(?, valid_until), last_error = NULL WHERE id = ?").run(sessionId, validUntil, id);
+  const c = getConnection(db, id)!;
+  audit(db, "utilisateur", "banque.connexion", `${c.aspspName} : accès en lecture autorisé`);
+}
+export function setConnectionState(db: DB, id: number, patch: { status?: ConnectionStatus; lastSyncAt?: string; lastError?: string | null }): void {
+  const c = getConnection(db, id);
+  if (!c) return;
+  db.prepare("UPDATE bank_connections SET status = ?, last_sync_at = ?, last_error = ? WHERE id = ?")
+    .run(patch.status ?? c.status, patch.lastSyncAt ?? c.lastSyncAt, patch.lastError === undefined ? c.lastError : patch.lastError, id);
+}
+export function deleteConnection(db: DB, id: number): void {
+  const c = getConnection(db, id);
+  db.prepare("DELETE FROM bank_connections WHERE id = ?").run(id);
+  if (c) audit(db, "utilisateur", "banque.deconnexion", c.aspspName);
+}
+export function replaceBankAccounts(db: DB, connectionId: number, accounts: Omit<BankAccountLink, "id" | "connectionId" | "accountId">[]): void {
+  db.transaction(() => {
+    // Les rattachements existants sont conservés d'une autorisation à l'autre grâce à l'empreinte du compte.
+    const previous = new Map(listBankAccounts(db).map((a) => [a.identificationHash, a.accountId]));
+    db.prepare("DELETE FROM bank_accounts WHERE connection_id = ?").run(connectionId);
+    const stmt = db.prepare("INSERT INTO bank_accounts (connection_id, external_uid, identification_hash, label, iban_masked, account_type, currency, account_id) VALUES (?,?,?,?,?,?,?,?)");
+    for (const a of accounts) stmt.run(connectionId, a.externalUid, a.identificationHash, a.label, a.ibanMasked, a.accountType, a.currency, previous.get(a.identificationHash) ?? null);
+  })();
+}
+export function listBankAccounts(db: DB, connectionId?: number): BankAccountLink[] {
+  const rows = connectionId === undefined ? db.prepare("SELECT * FROM bank_accounts ORDER BY id").all() : db.prepare("SELECT * FROM bank_accounts WHERE connection_id = ? ORDER BY id").all(connectionId);
+  return (rows as LinkRow[]).map(toLink);
+}
+export function linkBankAccount(db: DB, id: number, accountId: number | null): void {
+  db.prepare("UPDATE bank_accounts SET account_id = ? WHERE id = ?").run(accountId, id);
+}
+
 /* ───────────── Journal d'audit ───────────── */
 
 export type Actor = "utilisateur" | "ia" | "systeme";
@@ -380,7 +445,7 @@ export function isEmpty(db: DB): boolean {
 /** Efface toutes les données personnelles (droit à l'effacement). */
 export function wipeAll(db: DB): void {
   db.transaction(() => {
-    for (const t of ["forecasts", "goals", "decisions", "simulations", "messages", "conversations", "alerts", "pending_actions", "transactions", "holdings", "account_snapshots", "networth_snapshots", "accounts", "fact_history", "facts", "audit_log"]) {
+    for (const t of ["bank_accounts", "bank_connections", "forecasts", "goals", "decisions", "simulations", "messages", "conversations", "alerts", "pending_actions", "transactions", "holdings", "account_snapshots", "networth_snapshots", "accounts", "fact_history", "facts", "audit_log"]) {
       db.exec(`DELETE FROM ${t}`);
     }
   })();

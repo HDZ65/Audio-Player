@@ -22,7 +22,7 @@ Au premier lancement, `seed/situation.local.json` est importé s'il existe. Sino
 | Commande | Rôle |
 |---|---|
 | `npm run dev` / `npm run build && npm start` | Développement / production |
-| `npm test` | Tests (moteur, mémoire, agents, outils, import, sécurité) |
+| `npm test` | Tests (moteur, mémoire, agents, outils, connecteurs, import, sécurité) |
 | `npm run typecheck` | Vérification des types |
 | `npm run seed -- fichier.json` | Importer une situation de départ dans une base vide |
 
@@ -36,6 +36,41 @@ Au premier lancement, `seed/situation.local.json` est importé s'il existe. Sino
 | Recherche web | Possible (`ENABLE_WEB_SEARCH=true`), sources citées | Non |
 
 Si l'API est indisponible, l'assistant bascule sur le mode local en le disant.
+
+## Connecter ses comptes
+
+Tout passe par la page **Connexions**, uniquement par des voies autorisées et en lecture seule.
+
+### Banque (BoursoBank et autres) — agrégateur agréé DSP2
+
+L'application utilise [Enable Banking](https://enablebanking.com). Tu t'identifies sur le site de ta banque ; l'application ne voit jamais tes identifiants et ne reçoit que soldes et opérations. Aucun service de paiement n'est appelé.
+
+1. Crée un compte sur enablebanking.com, puis une application en environnement **Production**.
+2. Déclare l'adresse de retour `APP_URL/api/bank/callback` (par défaut `http://localhost:3000/api/bank/callback`).
+3. Range le fichier `.pem` téléchargé à la création dans `secrets/` (ignoré par git).
+4. Active l'application en y déclarant tes propres comptes (mode « restreint », réservé à tes comptes).
+5. Renseigne `ENABLE_BANKING_APP_ID`, `ENABLE_BANKING_PRIVATE_KEY_PATH` et `APP_URL` dans `.env.local`, redémarre, puis choisis ta banque dans la liste.
+
+À savoir :
+
+- La DSP2 couvre les comptes de paiement (compte courant, parfois les livrets). PEA, comptes-titres et assurances-vie ne sont généralement pas accessibles par cette voie.
+- L'autorisation doit être renouvelée périodiquement (180 jours au plus) ; l'assistant le signale.
+- La synchronisation se fait à l'ouverture de l'application, au plus toutes les 12 heures, et à la demande.
+- Seuls les quatre derniers caractères de l'IBAN sont conservés.
+
+### Trade Republic — export CSV officiel
+
+Trade Republic ne propose pas d'API publique pour le portefeuille. La voie prévue par le courtier est l'export natif : dans l'application, **Profil → Relevés → Export des transactions**, période « depuis le début ». L'import affiche un aperçu avant d'écrire quoi que ce soit, puis :
+
+- reconstitue les positions (quantités, prix de revient au prix moyen pondéré) ;
+- importe dividendes, intérêts et mouvements d'espèces, sans doublon d'un import à l'autre ;
+- remplace les lignes du même titre saisies à la main et conserve les valeurs de marché déjà renseignées.
+
+L'export ne contient pas de cours : la valeur actuelle de chaque ligne reste à saisir. Un prix de revient n'est jamais présenté comme une valorisation.
+
+Si Trade Republic figure dans la liste des banques de l'agrégateur, son compte espèces peut aussi être relié comme une banque.
+
+**Ce qui n'est volontairement pas fait** : se connecter avec le numéro de téléphone et le code de l'utilisateur en imitant l'application du courtier (bibliothèques non officielles). Cela contourne sa sécurité et ses conditions d'utilisation.
 
 ## Architecture
 
@@ -58,6 +93,7 @@ src/
 │   ├─ local.ts       Orchestrateur de secours, sans modèle
 │   └─ blocks.ts      Blocs riches de la conversation (graphiques, simulateur, comparatifs, fiches d'opération)
 ├─ lib/monitor/     Alertes : ne retient que l'important, respecte ce qui a été ignoré
+├─ lib/connectors/  Banque en lecture seule (Enable Banking), synchronisation, import Trade Republic
 ├─ lib/budget/      Import CSV bancaire et classement des opérations
 ├─ lib/security/    Session signée
 ├─ proxy.ts         Authentification et contrôle d'origine sur chaque requête
@@ -90,7 +126,8 @@ src/
 
 ## Limites connues de cette version
 
-- Pas de synchronisation bancaire : saisie manuelle et import CSV.
+- Connexion bancaire : testée contre un faux service conforme à la documentation et, pour l'authentification, contre l'API réelle ; pas encore contre une vraie banque. La couverture de chaque banque dépend de l'agrégateur.
+- Import Trade Republic : écrit d'après des descriptions publiques du format, tolérant sur le nom des colonnes ; à valider sur un export réel.
 - Pas de cours de Bourse : valorisations saisies à la main.
 - La surveillance s'exécute à l'ouverture de l'application et après chaque modification, pas en tâche de fond.
 - Fiscalité simplifiée et signalée comme telle : LMNP au réel (amortissements) non modélisé, déficit foncier reporté sans imputation sur le revenu global, allocation chômage approximée. Certains paramètres 2026 sont marqués « à vérifier ».
@@ -98,7 +135,7 @@ src/
 
 ## Feuille de route
 
-1. Agrégation bancaire par un prestataire agréé (accès en lecture seule, consentement DSP2).
+1. Agrégation des placements (PEA, comptes-titres) par un prestataire agréé couvrant l'épargne financière.
 2. Cours et données de marché depuis une source sous licence, horodatés.
 3. Surveillance planifiée et notifications.
 4. Rapport patrimonial exportable ; parcours guidé d'un projet immobilier.

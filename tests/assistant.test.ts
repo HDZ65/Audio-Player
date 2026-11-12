@@ -41,7 +41,7 @@ describe("mémoire et contexte", () => {
     const text = contextForModel(buildContext(db));
     expect(text).toContain("[vérifié] Salaire net mensuel : 2700");
     expect(text).toContain("[MANQUANT] Autres dépenses mensuelles");
-    expect(text).toContain("valeur inconnue");
+    expect(text).toContain("valeur de marché inconnue");
     expect(text).not.toMatch(/IBAN|FR76/);
   });
   it("conserve l'historique des valeurs", () => {

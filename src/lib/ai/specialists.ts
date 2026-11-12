@@ -91,6 +91,15 @@ function patrimoineAgent(ctx: FinancialContext): Finding[] {
   } else if (e && e.level === "insuffisante") {
     out.push(f({ key: "patrimoine.precaution", agent: "Patrimoine", severity: "important", nature: "fait", title: "Épargne de précaution insuffisante", detail: `${e.monthsCovered.toFixed(1).replace(".", ",")} mois de dépenses couverts ; il manque ${eur(e.gapToMin)} pour atteindre ${SAFETY.emergencyMonthsMin.value} mois.`, fingerprint: Math.round(e.monthsCovered * 2) }));
   }
+  for (const c of ctx.connections) {
+    if (c.status === "expiree" || (c.daysLeft !== null && c.daysLeft < 0)) {
+      out.push(f({ key: `patrimoine.connexion_expiree.${c.bank}`, agent: "Patrimoine", severity: "important", nature: "fait", title: `L'autorisation ${c.bank} a expiré`, detail: "Les soldes et opérations de cette banque ne sont plus mis à jour. Renouvelle l'autorisation depuis la page Connexions ; tes rattachements seront conservés.", fingerprint: "expiree" }));
+    } else if (c.status === "erreur") {
+      out.push(f({ key: `patrimoine.connexion_erreur.${c.bank}`, agent: "Patrimoine", severity: "important", nature: "fait", title: `La synchronisation ${c.bank} échoue`, detail: "La dernière lecture n'a pas abouti. Les chiffres affichés peuvent dater : relance la synchronisation depuis la page Connexions.", fingerprint: c.lastSyncAt ?? "jamais" }));
+    } else if (c.daysLeft !== null && c.daysLeft <= 7) {
+      out.push(f({ key: `patrimoine.connexion_bientot_expiree.${c.bank}`, agent: "Patrimoine", severity: "info", nature: "fait", title: `L'autorisation ${c.bank} expire dans ${c.daysLeft} jour(s)`, detail: "Pense à la renouveler depuis la page Connexions pour ne pas interrompre le suivi.", fingerprint: "bientot" }));
+    }
+  }
   if (ctx.stale.length > 0) {
     out.push(f({ key: "patrimoine.donnees_anciennes", agent: "Patrimoine", severity: "info", nature: "fait", title: "Certaines données datent", detail: `À mettre à jour : ${ctx.stale.slice(0, 3).join(" ; ")}${ctx.stale.length > 3 ? "…" : ""}.`, fingerprint: ctx.stale.length }));
   }

@@ -61,7 +61,12 @@ export function Assistant() {
       setLoadError(e instanceof Error ? e.message : "Chargement impossible");
     }
   }, []);
-  useEffect(() => { void load(true); }, [load]);
+  useEffect(() => {
+    void load(true);
+    api<{ reports: { inserted: number; balancesUpdated: number }[] }>("/api/bank/sync", { method: "POST", body: { auto: true } })
+      .then((r) => { if (r.reports.some((x) => x.inserted > 0 || x.balancesUpdated > 0)) void load(false); })
+      .catch(() => undefined);
+  }, [load]);
 
   const scrollToEnd = () => requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }));
 

@@ -146,5 +146,33 @@ export const MIGRATIONS: readonly string[] = [
     action TEXT NOT NULL,
     detail TEXT NOT NULL
   );
+  `,  `
+  -- Connexions bancaires en lecture seule (agrégateur agréé) et enrichissement des lignes importées.
+  CREATE TABLE bank_connections (
+    id INTEGER PRIMARY KEY,
+    provider TEXT NOT NULL,
+    aspsp_name TEXT NOT NULL,
+    aspsp_country TEXT NOT NULL,
+    state TEXT NOT NULL UNIQUE,
+    session_id TEXT,
+    status TEXT NOT NULL CHECK (status IN ('en_attente','active','expiree','erreur')),
+    valid_until TEXT,
+    created_at TEXT NOT NULL,
+    last_sync_at TEXT,
+    last_error TEXT
+  );
+  CREATE TABLE bank_accounts (
+    id INTEGER PRIMARY KEY,
+    connection_id INTEGER NOT NULL REFERENCES bank_connections(id) ON DELETE CASCADE,
+    external_uid TEXT NOT NULL,
+    identification_hash TEXT NOT NULL,
+    label TEXT NOT NULL,
+    iban_masked TEXT,
+    account_type TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL
+  );
+  ALTER TABLE holdings ADD COLUMN isin TEXT;
+  ALTER TABLE holdings ADD COLUMN cost_basis REAL;
   `,
 ];
