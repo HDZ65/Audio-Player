@@ -136,5 +136,6 @@ export function requiredMonthly(current: number, target: number, years: number, 
   const futureOfCurrent = current * growth;
   if (futureOfCurrent >= target) return 0;
   const annuityFactor = r === 0 ? n : ((growth - 1) / r) * (1 + r);
-  return round2((target - futureOfCurrent) / annuityFactor);
+  // Arrondi au centime supérieur : le versement indiqué doit suffire à atteindre la cible.
+  return Math.ceil(((target - futureOfCurrent) / annuityFactor) * 100) / 100;
 }
