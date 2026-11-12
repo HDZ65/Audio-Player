@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+.env
+.env.local
+# Données personnelles : jamais versionnées
+data/*.db
+data/*.db-*
+seed/*.local.json

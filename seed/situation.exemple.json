@@ -1,0 +1,20 @@
+{
+  "asOf": "2026-01-15",
+  "source": "exemple fictif",
+  "profile": {
+    "salaireNetMensuel": 2400,
+    "loyerMensuel": 750,
+    "autresDepensesMensuelles": null,
+    "projetResidencePrincipale": "Aucun projet à ce jour",
+    "objectifPrioritaire": "Développer mon patrimoine"
+  },
+  "accounts": [
+    { "name": "Compte courant", "institution": "Ma banque", "kind": "courant", "balance": 1800 },
+    { "name": "Livret A", "institution": "Ma banque", "kind": "livret", "balance": 3000 },
+    { "name": "PEA", "institution": "Mon courtier", "kind": "pea", "balance": 2500 }
+  ],
+  "holdings": [
+    { "name": "ETF Monde", "account": "PEA", "assetClass": "etf", "value": 2500 }
+  ],
+  "goals": []
+}
